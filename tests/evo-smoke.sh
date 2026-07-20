@@ -68,5 +68,19 @@ else
   check "register missing file rejected" "rejected" "rejected"
 fi
 
+# --- search / list / show ---
+check "search hit" "pdf-toc" "$("$EVO_BIN" search pdf | cut -f1 | head -1)"
+check "search case-insensitive" "pdf-toc" "$("$EVO_BIN" search PDF | cut -f1 | head -1)"
+check "search miss empty" "" "$("$EVO_BIN" search nonexistent-xyz)"
+check "list all" "2" "$("$EVO_BIN" list | wc -l | tr -d ' ')"
+check "list --lang py" "1" "$("$EVO_BIN" list --lang py | wc -l | tr -d ' ')"
+check "list --lang ts" "1" "$("$EVO_BIN" list --lang ts | wc -l | tr -d ' ')"
+check "show name" "pdf-toc" "$("$EVO_BIN" show pdf-toc | jq -r .name)"
+if "$EVO_BIN" show ghost 2>/dev/null; then
+  check "show missing rejected" "rejected" "accepted"
+else
+  check "show missing rejected" "rejected" "rejected"
+fi
+
 echo "---"
 if [ "$fails" -gt 0 ]; then echo "$fails FAIL"; exit 1; else echo "all ok"; fi

@@ -117,6 +117,33 @@ cmd_register() {
   jq --arg n "$name" '.tools[] | select(.name == $n)' "$INDEX"
 }
 
+cmd_search() {
+  local q="${1:-}"
+  [ -n "$q" ] || err "usage: evo search <keyword>"
+  jq -r --arg q "$q" '.tools[]
+    | select(((.name + " " + .description + " " + (.tags | join(" "))) | ascii_downcase)
+             | contains($q | ascii_downcase))
+    | "\(.name)\t\(.lang)\t\(.description)"' "$INDEX"
+}
+
+cmd_list() {
+  local lang=""
+  while [ $# -gt 0 ]; do case "$1" in
+    --lang) [ $# -ge 2 ] || err "flag $1 requires a value"; lang="$2"; shift 2;;
+    *) err "unknown flag: $1";;
+  esac; done
+  case "$lang" in py) lang=python;; ts) lang=bun;; esac
+  jq -r --arg l "$lang" '.tools[] | select($l == "" or .lang == $l)
+    | "\(.name)\t\(.lang)\t\(.description)"' "$INDEX"
+}
+
+cmd_show() {
+  local name="${1:-}"
+  [ -n "$name" ] || err "usage: evo show <name>"
+  jq -e --arg n "$name" '.tools[] | select(.name == $n)' "$INDEX" \
+    || err "tool not found: $name"
+}
+
 main() {
   need jq; need git
   local cmd="${1:-}"
@@ -124,7 +151,10 @@ main() {
   case "$cmd" in
     new) init_check; cmd_new "$@";;
     register) init_check; cmd_register "$@";;
-    *) printf 'usage: evo <new|register>\n';;
+    search) init_check; cmd_search "$@";;
+    list) init_check; cmd_list "$@";;
+    show) init_check; cmd_show "$@";;
+    *) printf 'usage: evo <new|register|search|list|show>\n';;
   esac
 }
 main "$@"
