@@ -29,5 +29,23 @@ else
   check "new duplicate rejected" "rejected" "rejected"
 fi
 
+# --- error contract & name validation ---
+check "error is valid JSON" "usage" "$("$EVO_BIN" new 2>&1 >/dev/null | jq -r '.error' | grep -o '^usage')"
+if "$EVO_BIN" new Bad_Name --lang py --desc x 2>/dev/null; then
+  check "non-kebab name rejected" "rejected" "accepted"
+else
+  check "non-kebab name rejected" "rejected" "rejected"
+fi
+if "$EVO_BIN" new ../evil --lang py --desc x 2>/dev/null; then
+  check "path traversal rejected" "rejected" "accepted"
+else
+  check "path traversal rejected" "rejected" "rejected"
+fi
+if "$EVO_BIN" new foo2 --lang 2>/dev/null; then
+  check "flag without value rejected" "rejected" "accepted"
+else
+  check "flag without value rejected" "rejected" "rejected"
+fi
+
 echo "---"
 if [ "$fails" -gt 0 ]; then echo "$fails FAIL"; exit 1; else echo "all ok"; fi
