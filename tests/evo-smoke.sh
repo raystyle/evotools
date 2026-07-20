@@ -82,5 +82,23 @@ else
   check "show missing rejected" "rejected" "rejected"
 fi
 
+# --- run / sync ---
+if command -v uv >/dev/null 2>&1; then
+  cat > "$EVO_HOME/tools/echoargs.py" <<'EOF'
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
+import sys
+print("ran:" + sys.argv[1])
+EOF
+  "$EVO_BIN" register tools/echoargs.py --desc "echo" >/dev/null
+  check "run python tool" "ran:ok" "$("$EVO_BIN" run echoargs -- ok)"
+fi
+if command -v bun >/dev/null 2>&1; then
+  check "run bun tool" "hello" "$("$EVO_BIN" run hello)"
+fi
+check "sync" '{"status": "synced"}' "$("$EVO_BIN" sync)"
+
 echo "---"
 if [ "$fails" -gt 0 ]; then echo "$fails FAIL"; exit 1; else echo "all ok"; fi

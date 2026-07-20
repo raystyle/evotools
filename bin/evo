@@ -144,6 +144,31 @@ cmd_show() {
     || err "tool not found: $name"
 }
 
+cmd_run() {
+  local name="${1:-}"
+  [ -n "$name" ] || err "usage: evo run <name> [-- args...]"
+  shift
+  [ "${1:-}" = "--" ] && shift
+  local file lang
+  file=$(jq -r --arg n "$name" '.tools[] | select(.name == $n) | .file' "$INDEX")
+  [ -n "$file" ] || err "tool not found: $name"
+  lang=$(jq -r --arg n "$name" '.tools[] | select(.name == $n) | .lang' "$INDEX")
+  if [ "$lang" = python ]; then
+    need uv
+    exec uv run -q "$EVO_HOME/$file" "$@"
+  else
+    need bun
+    exec bun --silent run "$EVO_HOME/$file" "$@"
+  fi
+}
+
+cmd_sync() {
+  local branch; branch=$(git -C "$EVO_HOME" symbolic-ref --short HEAD)
+  git -C "$EVO_HOME" pull --rebase -q origin "$branch"
+  git -C "$EVO_HOME" push -q origin "$branch"
+  echo '{"status": "synced"}'
+}
+
 main() {
   need jq; need git
   local cmd="${1:-}"
@@ -154,7 +179,9 @@ main() {
     search) init_check; cmd_search "$@";;
     list) init_check; cmd_list "$@";;
     show) init_check; cmd_show "$@";;
-    *) printf 'usage: evo <new|register|search|list|show>\n';;
+    run) init_check; cmd_run "$@";;
+    sync) init_check; cmd_sync "$@";;
+    *) printf 'usage: evo <new|register|search|list|show|run|sync>\n';;
   esac
 }
 main "$@"
