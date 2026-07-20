@@ -47,5 +47,26 @@ else
   check "flag without value rejected" "rejected" "rejected"
 fi
 
+# --- register ---
+cat > "$EVO_HOME/tools/hello.ts" <<'EOF'
+#!/usr/bin/env bun
+console.log("hello")
+EOF
+"$EVO_BIN" register tools/hello.ts --desc "测试工具" --tags demo >/dev/null
+check "register lang from ext" "bun" "$(jq -r '.tools[] | select(.name=="hello") | .lang' "$EVO_HOME/index.json")"
+check "register tags" "demo" "$(jq -r '.tools[] | select(.name=="hello") | .tags[0]' "$EVO_HOME/index.json")"
+if "$EVO_BIN" register tools/hello.ts --desc x 2>/dev/null; then
+  check "register duplicate rejected" "rejected" "accepted"
+else
+  check "register duplicate rejected" "rejected" "rejected"
+fi
+"$EVO_BIN" register tools/hello.ts --update >/dev/null
+check "register --update single entry" "1" "$(jq '[.tools[] | select(.name=="hello")] | length' "$EVO_HOME/index.json")"
+if "$EVO_BIN" register tools/missing.py --desc x 2>/dev/null; then
+  check "register missing file rejected" "rejected" "accepted"
+else
+  check "register missing file rejected" "rejected" "rejected"
+fi
+
 echo "---"
 if [ "$fails" -gt 0 ]; then echo "$fails FAIL"; exit 1; else echo "all ok"; fi

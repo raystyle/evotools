@@ -81,13 +81,50 @@ EOF
   jq --arg n "$name" '.tools[] | select(.name == $n)' "$INDEX"
 }
 
+cmd_register() {
+  local file="" desc="" tags="" update=0
+  while [ $# -gt 0 ]; do case "$1" in
+    --desc) [ $# -ge 2 ] || err "flag $1 requires a value"; desc="$2"; shift 2;;
+    --tags) [ $# -ge 2 ] || err "flag $1 requires a value"; tags="$2"; shift 2;;
+    --update) update=1; shift;;
+    -*) err "unknown flag: $1";;
+    *) file="$1"; shift;;
+  esac; done
+  [ -n "$file" ] || err 'usage: evo register <file> --desc "..." [--tags a,b] [--update]'
+  [ -f "$EVO_HOME/$file" ] || err "file not found: $EVO_HOME/$file"
+  local base ext name lang
+  base=$(basename "$file"); ext="${base##*.}"; name="${base%.*}"
+  [[ "$name" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || err "name must be kebab-case"
+  case "$ext" in
+    py) lang=python;;
+    ts) lang=bun;;
+    *) err "unsupported extension: $ext";;
+  esac
+  if find_tool "$name"; then
+    [ "$update" = 1 ] || err "tool exists: $name (use --update to refresh)"
+    local tmp; tmp=$(mktemp)
+    jq --arg n "$name" --arg d "$desc" --arg tags "$tags" --arg today "$(today)" '
+      .tools = [.tools[] | if .name == $n then
+        . + { description: (if $d == "" then .description else $d end),
+              tags: (if $tags == "" then .tags else ($tags | split(",") | map(select(length > 0))) end),
+              updated: $today }
+      else . end]' "$INDEX" > "$tmp" && mv "$tmp" "$INDEX"
+  else
+    [ -n "$desc" ] || err "new tool requires --desc"
+    add_index "$name" "$file" "$lang" "$desc" "" "$tags"
+  fi
+  git_sync "evo: register $name"
+  jq --arg n "$name" '.tools[] | select(.name == $n)' "$INDEX"
+}
+
 main() {
   need jq; need git
   local cmd="${1:-}"
   [ $# -gt 0 ] && shift
   case "$cmd" in
     new) init_check; cmd_new "$@";;
-    *) printf 'usage: evo <new>\n';;
+    register) init_check; cmd_register "$@";;
+    *) printf 'usage: evo <new|register>\n';;
   esac
 }
 main "$@"
