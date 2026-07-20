@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+EVO_HOME="${EVO_HOME:-$HOME/.evotools}"
+INDEX="$EVO_HOME/index.json"
+TOOLS_DIR="$EVO_HOME/tools"
+
+err()  { printf '{"error": "%s"}\n' "$1" >&2; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || err "missing dependency: $1"; }
+today() { date +%F; }
+
+init_check() {
+  [ -d "$EVO_HOME/.git" ] || err "evotools repo not found at $EVO_HOME"
+  [ -f "$INDEX" ] || printf '{"version": 1, "tools": []}\n' > "$INDEX"
+}
+
+find_tool() { jq -e --arg n "$1" '.tools[] | select(.name == $n)' "$INDEX" >/dev/null 2>&1; }
+
+git_sync() { # commit-msg；提交并尽力 push
+  git -C "$EVO_HOME" add -A
+  git -C "$EVO_HOME" diff --cached --quiet && return 0
+  git -C "$EVO_HOME" commit -q -m "$1"
+  local branch; branch=$(git -C "$EVO_HOME" symbolic-ref --short HEAD)
+  git -C "$EVO_HOME" push -q origin "$branch" 2>/dev/null \
+    || printf '{"warning": "push failed, run evo sync later"}\n' >&2
+}
+
+add_index() { # name file lang desc deps(csv) tags(csv)
+  local tmp; tmp=$(mktemp)
+  jq --arg n "$1" --arg f "$2" --arg l "$3" --arg d "$4" \
+     --arg deps "${5:-}" --arg tags "${6:-}" --arg today "$(today)" '
+    .tools += [{
+      name: $n, file: $f, lang: $l, description: $d, usage: "",
+      deps: ($deps | split(",") | map(select(length > 0))),
+      tags: ($tags | split(",") | map(select(length > 0))),
+      created: $today, updated: $today
+    }]' "$INDEX" > "$tmp" && mv "$tmp" "$INDEX"
+}
+
+cmd_new() {
+  local name="" lang="" desc=""
+  while [ $# -gt 0 ]; do case "$1" in
+    --lang) lang="$2"; shift 2;;
+    --desc) desc="$2"; shift 2;;
+    -*) err "unknown flag: $1";;
+    *) name="$1"; shift;;
+  esac; done
+  [ -n "$name" ] && [ -n "$lang" ] && [ -n "$desc" ] \
+    || err 'usage: evo new <name> --lang py|ts --desc "..."'
+  local ext
+  case "$lang" in
+    py|python) lang=python; ext=py;;
+    ts|bun)    lang=bun;    ext=ts;;
+    *) err "lang must be py or ts";;
+  esac
+  find_tool "$name" && err "tool exists: $name (see: evo show $name)"
+  local file="$TOOLS_DIR/$name.$ext"
+  [ -e "$file" ] && err "file exists: $file"
+  mkdir -p "$TOOLS_DIR"
+  if [ "$ext" = py ]; then
+    cat > "$file" <<EOF
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
+# task: $desc
+# step: 1. implement
+EOF
+  else
+    cat > "$file" <<EOF
+#!/usr/bin/env bun
+// task: $desc
+// step: 1. implement
+EOF
+  fi
+  chmod +x "$file"
+  add_index "$name" "tools/$name.$ext" "$lang" "$desc" "" ""
+  git_sync "evo: new tool $name"
+  jq --arg n "$name" '.tools[] | select(.name == $n)' "$INDEX"
+}
+
+main() {
+  need jq; need git
+  local cmd="${1:-}"
+  [ $# -gt 0 ] && shift
+  case "$cmd" in
+    new) init_check; cmd_new "$@";;
+    *) printf 'usage: evo <new>\n';;
+  esac
+}
+main "$@"
