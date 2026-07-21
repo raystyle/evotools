@@ -73,7 +73,7 @@ cmd_new() {
 #   无参数且 stdin 非 TTY → 读 stdin;--help 带示例;--dry-run 输出计划无副作用
 import argparse, json, sys
 
-def ok(obj): print(json.dumps(obj, ensure_ascii=False), flush=True)
+def ok(obj): print(json.dumps({"v": 1, **obj} if isinstance(obj, dict) else obj, ensure_ascii=False), flush=True)
 def fail(msg, code=1):
     print(json.dumps({"error": msg}, ensure_ascii=False), file=sys.stderr, flush=True)
     sys.exit(code)
@@ -88,7 +88,7 @@ a = p.parse_args()
 text = a.input or (sys.stdin.read().strip() if not sys.stdin.isatty() else "")
 if not text: fail("usage: $name <input> [--dry-run]")
 if a.dry_run:
-    ok({"plan": {"input": text}}); sys.exit(0)
+    ok({"v": 1, "plan": {"input": text}}); sys.exit(0)
 
 # step: 1. 实现主体,结果用 ok({...}) 输出;运行时错误用 fail(msg, 2)
 ok({"input": text, "result": "TODO"})
@@ -99,7 +99,7 @@ EOF
 // task: $desc
 // 契约 v1: stdout 只出结果 JSON;错误 {"error":...} stderr+exit 1/2;
 //   无参数且 stdin 非 TTY → 读 stdin;--help 带示例;--dry-run 输出计划无副作用
-const ok = (obj: unknown) => process.stdout.write(JSON.stringify(obj) + "\n")
+const ok = (obj: unknown) => process.stdout.write(JSON.stringify(obj !== null && typeof obj === "object" && !Array.isArray(obj) ? { v: 1, ...(obj as Record<string, unknown>) } : obj) + "\n")
 const fail = (msg: string, code = 1): never => {
   process.stderr.write(JSON.stringify({ error: msg }) + "\n")
   process.exit(code)
@@ -120,7 +120,7 @@ const dry = argv.includes("--dry-run")
 const positional = argv.filter((x) => !x.startsWith("--"))
 const input = positional[0] ?? (!process.stdin.isTTY ? (await Bun.stdin.text()).trim() : "")
 if (!input) fail("usage: $name <input> [--dry-run]")
-if (dry) { ok({ plan: { input } }); process.exit(0) }
+if (dry) { ok({ v: 1, plan: { input } }); process.exit(0) }
 
 // step: 1. 实现主体,结果用 ok({...}) 输出
 ok({ input, result: "TODO" })

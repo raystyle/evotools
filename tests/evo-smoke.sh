@@ -50,14 +50,14 @@ fi
 # --- 契约 v1 模板(生成的工具自带 --help/--dry-run/stdin) ---
 check "py template --help" "0" "$("$EVO_HOME/tools/pdf-toc.py" --help >/dev/null 2>&1; echo $?)"
 check "py template --help has examples" "true" "$("$EVO_HOME/tools/pdf-toc.py" --help 2>/dev/null | grep -q 'examples:' && echo true)"
-check "py template --dry-run" '{"plan":{"input":"x"}}' "$("$EVO_HOME/tools/pdf-toc.py" x --dry-run 2>/dev/null | jq -c .)"
-check "py template stdin" '{"plan":{"input":"x"}}' "$(echo x | "$EVO_HOME/tools/pdf-toc.py" --dry-run 2>/dev/null | jq -c .)"
+check "py template --dry-run" '{"v":1,"plan":{"input":"x"}}' "$("$EVO_HOME/tools/pdf-toc.py" x --dry-run 2>/dev/null | jq -c .)"
+check "py template stdin" '{"v":1,"plan":{"input":"x"}}' "$(echo x | "$EVO_HOME/tools/pdf-toc.py" --dry-run 2>/dev/null | jq -c .)"
 "$EVO_BIN" new quote-test --lang py --desc '提取 "大纲" 信息' >/dev/null
 check "py template quoted desc parses" "0" "$("$EVO_HOME/tools/quote-test.py" --help >/dev/null 2>&1; echo $?)"
 "$EVO_BIN" new ts-probe --lang ts --desc "probe" >/dev/null
 if command -v bun >/dev/null 2>&1; then
   check "ts template --help" "0" "$("$EVO_HOME/tools/ts-probe.ts" --help >/dev/null 2>&1; echo $?)"
-  check "ts template --dry-run" '{"plan":{"input":"x"}}' "$("$EVO_HOME/tools/ts-probe.ts" x --dry-run 2>/dev/null | jq -c .)"
+  check "ts template --dry-run" '{"v":1,"plan":{"input":"x"}}' "$("$EVO_HOME/tools/ts-probe.ts" x --dry-run 2>/dev/null | jq -c .)"
 fi
 
 # --- register ---
