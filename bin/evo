@@ -59,6 +59,9 @@ cmd_new() {
   [ -e "$file" ] && err "file exists: $file"
   mkdir -p "$TOOLS_DIR"
   if [ "$ext" = py ]; then
+    # $desc 嵌入 Python 字符串字面量,先转义反斜杠再转义双引号(防引号注入生成 SyntaxError)
+    local desc_py="${desc//\\/\\\\}"
+    desc_py="${desc_py//\"/\\\"}"
     cat > "$file" <<EOF
 #!/usr/bin/env -S uv run --script
 # /// script
@@ -75,8 +78,9 @@ def fail(msg, code=1):
     print(json.dumps({"error": msg}, ensure_ascii=False), file=sys.stderr, flush=True)
     sys.exit(code)
 
-p = argparse.ArgumentParser(prog="$name", description="$desc",
-    epilog="contract: stdout JSON;无 input 读 stdin;--dry-run 输出执行计划")
+p = argparse.ArgumentParser(prog="$name", description="$desc_py",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog="contract: stdout JSON;无 input 读 stdin;--dry-run 输出执行计划\nexamples:\n  $name <input>\n  echo <input> | $name")
 p.add_argument("input", nargs="?", help="输入(缺省读 stdin)")
 p.add_argument("--dry-run", action="store_true", help="只输出执行计划,不执行")
 a = p.parse_args()
@@ -86,7 +90,7 @@ if not text: fail("usage: $name <input> [--dry-run]")
 if a.dry_run:
     ok({"plan": {"input": text}}); sys.exit(0)
 
-# step: 1. 实现主体,结果用 ok({...}) 输出
+# step: 1. 实现主体,结果用 ok({...}) 输出;运行时错误用 fail(msg, 2)
 ok({"input": text, "result": "TODO"})
 EOF
   else
