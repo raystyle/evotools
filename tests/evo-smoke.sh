@@ -47,6 +47,16 @@ else
   check "flag without value rejected" "rejected" "rejected"
 fi
 
+# --- 契约 v1 模板(生成的工具自带 --help/--dry-run/stdin) ---
+check "py template --help" "0" "$("$EVO_HOME/tools/pdf-toc.py" --help >/dev/null 2>&1; echo $?)"
+check "py template --dry-run" '{"plan":{"input":"x"}}' "$("$EVO_HOME/tools/pdf-toc.py" x --dry-run 2>/dev/null | jq -c .)"
+check "py template stdin" '{"plan":{"input":"x"}}' "$(echo x | "$EVO_HOME/tools/pdf-toc.py" --dry-run 2>/dev/null | jq -c .)"
+if command -v bun >/dev/null 2>&1; then
+  "$EVO_BIN" new ts-probe --lang ts --desc "probe" >/dev/null
+  check "ts template --help" "0" "$("$EVO_HOME/tools/ts-probe.ts" --help >/dev/null 2>&1; echo $?)"
+  check "ts template --dry-run" '{"plan":{"input":"x"}}' "$("$EVO_HOME/tools/ts-probe.ts" x --dry-run 2>/dev/null | jq -c .)"
+fi
+
 # --- register ---
 cat > "$EVO_HOME/tools/hello.ts" <<'EOF'
 #!/usr/bin/env bun
@@ -72,9 +82,9 @@ fi
 check "search hit" "pdf-toc" "$("$EVO_BIN" search pdf | cut -f1 | head -1)"
 check "search case-insensitive" "pdf-toc" "$("$EVO_BIN" search PDF | cut -f1 | head -1)"
 check "search miss empty" "" "$("$EVO_BIN" search nonexistent-xyz)"
-check "list all" "2" "$("$EVO_BIN" list | wc -l | tr -d ' ')"
+check "list all" "3" "$("$EVO_BIN" list | wc -l | tr -d ' ')"
 check "list --lang py" "1" "$("$EVO_BIN" list --lang py | wc -l | tr -d ' ')"
-check "list --lang ts" "1" "$("$EVO_BIN" list --lang ts | wc -l | tr -d ' ')"
+check "list --lang ts" "2" "$("$EVO_BIN" list --lang ts | wc -l | tr -d ' ')"
 check "show name" "pdf-toc" "$("$EVO_BIN" show pdf-toc | jq -r .name)"
 if "$EVO_BIN" show ghost 2>/dev/null; then
   check "show missing rejected" "rejected" "accepted"

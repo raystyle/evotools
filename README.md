@@ -28,3 +28,15 @@ evo sync                                          # pull --rebase + push
 
 - 工具名 kebab-case、全库唯一；python 工具用 PEP 723 声明依赖，bun 工具依赖走 import auto-install
 - 注册即自动 commit + push；多机器使用前 `evo sync`
+
+## 工具契约 v1(所有工具必须满足)
+
+| 维度 | 约定 |
+|------|------|
+| 输入 | 位置参数为主;无参数且 stdin 非 TTY → 自动读 stdin(管道可串联) |
+| 输出 | stdout 只出结果:单结果 JSON、多结果 JSONL;jq 可整形 |
+| 错误 | `{"error": "..."}` stderr + exit 1(参数)/2(运行时);提示/进度走 stderr |
+| `--help` | 必支持:usage + ≤3 示例 + 输入/输出契约一句话,exit 0(agent 自省) |
+| `--dry-run` | 必支持:不执行副作用,输出执行计划 JSON(agent 先验证再真跑) |
+
+`evo new` 生成的 py/ts 模板已自带契约脚手架,填实现即可。
