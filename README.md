@@ -2,6 +2,8 @@
 
 Agent 按需生成的可复用小命令行工具库（python + bun 混合），`index.json` 登记，`bin/evo` 管理。
 
+**核心闭环：单文件自包含 → 一个脚本 = 一个命令 → 工具库随用随长。** python 工具靠 PEP 723 内联元数据声明依赖（`uv run` 自动解析），bun 工具靠 import auto-install——都不需要项目脚手架，shebang 直接可执行，所以每个工具就是一个文件，`evo new` 即建即得。
+
 ## 安装
 
 ```bash
